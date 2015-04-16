@@ -95,6 +95,8 @@ conll2007 = LazyCorpusLoader(
     'conll2007', DependencyCorpusReader, '.*\.(test|train).*', encoding=[
         ('eus', 'ISO-8859-2'),
         ('esp', 'utf8')])
+crubadan = LazyCorpusLoader(
+    'crubadan', CrubadanCorpusReader, r'.*\.txt')
 dependency_treebank = LazyCorpusLoader(
     'dependency_treebank', DependencyCorpusReader, '.*\.dp',
     encoding='ascii')
@@ -254,6 +256,7 @@ def demo():
     cmudict.demo()
     conll2000.demo()
     conll2002.demo()
+    crubadan.demo()
     genesis.demo()
     gutenberg.demo()
     ieer.demo()
