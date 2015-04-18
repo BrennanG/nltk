@@ -1,6 +1,4 @@
-import codecs
 import re
-import os
 
 from nltk.util import Index
 
@@ -9,7 +7,7 @@ from nltk.corpus.reader.api import *
 
 class CrubadanCorpusReader(CorpusReader):
 
-    FILE_TYPES = ["urls", "chartrigrams", "wordbigrams", "words"]
+    _FILE_TYPES = ["urls", "chartrigrams", "wordbigrams", "words"]
 
     def entries(self, languageCode, fileType):
         """
@@ -22,14 +20,7 @@ class CrubadanCorpusReader(CorpusReader):
         """
         self._check_file_type(fileType)
         path = FileSystemPathPointer(self._root+"/"+self._get_file_id(languageCode, fileType))
-        # Determine the correct function to use for the StreamBackedCorpusView
-        if fileType == "urls":
-            func = read_one_column_block
-        elif fileType == "chartrigrams" or fileType == "words":
-            func = read_two_column_block
-        else:
-            func = read_three_column_block
-        return StreamBackedCorpusView(path, func, encoding=self._encoding)
+        return StreamBackedCorpusView(path, read_block, encoding=self._encoding)
 
     def raw(self, languageCode, fileType):
         """
@@ -69,7 +60,7 @@ class CrubadanCorpusReader(CorpusReader):
         else:
             return dict(Index(self.entries(languageCode, fileType)))
 
-    def setEncoding(self, encoding):
+    def set_encoding(self, encoding):
         """
         :param encoding: The encoding that the Corpus Reader should use
         """
@@ -88,7 +79,7 @@ class CrubadanCorpusReader(CorpusReader):
         """
         Checks the validity of the fileType
         """
-        if not fileType in self.FILE_TYPES:
+        if not fileType in self._FILE_TYPES:
             raise ValueError("The file type '"+fileType+"' does not exist.")
 
     def _get_file_id(self, languageCode, fileType):
@@ -101,31 +92,18 @@ class CrubadanCorpusReader(CorpusReader):
                 return f
         raise ValueError("A file for language '"+languageCode+"' of type '"+fileType+"' does not exist.")
 
-# Functions for the StreamBackedCorpusView
-def read_one_column_block(stream):
+# Function for the StreamBackedCorpusView
+def read_block(stream):
     entries = []
     while len(entries) < 100: # Read 100 at a time.
         line = stream.readline()
         if line == '': return entries # end of file.
         pieces = line.split()
-        entries.append((pieces[0]))
-    return entries
-
-def read_two_column_block(stream):
-    entries = []
-    while len(entries) < 100: # Read 100 at a time.
-        line = stream.readline()
-        if line == '': return entries # end of file.
-        pieces = line.split()
-        entries.append((pieces[0], pieces[1]))
-    return entries
-
-def read_three_column_block(stream):
-    entries = []
-    while len(entries) < 100: # Read 100 at a time.
-        line = stream.readline()
-        if line == '': return entries # end of file.
-        pieces = line.split()
-        entries.append(((pieces[0], pieces[1]), pieces[2]))
+        if (len(pieces) == 1): # file type is "urls"
+            entries.append((pieces[0]))
+        elif (len(pieces) == 2): # file type is "chartrigrams" or "words"
+            entries.append((pieces[0], pieces[1]))
+        else: # file type is "word bigrams"
+            entries.append(((pieces[0], pieces[1]), pieces[2]))
     return entries
 
