@@ -11,7 +11,7 @@ class CrubadanCorpusReader(CorpusReader):
 
     FILE_TYPES = ["urls", "chartrigrams", "wordbigrams", "words"]
 
-    def entries(self, languageCode=None, fileType=None):
+    def entries(self, languageCode, fileType):
         """
         :return: the file of the specified language code and file type as
             a list containing tuples of words, word bigrams, or character trigrams
@@ -20,14 +20,8 @@ class CrubadanCorpusReader(CorpusReader):
         :param fileType: The file type of the desired file
             (i.e. 'urls', 'words', 'wordbigrams', or 'chartrigrams')
         """
-        # Check the file type
-        if not fileType in self.FILE_TYPES:
-            raise ValueError("The file type '"+fileType+"' does not exist.")
-        # Create the Path Pointer for the StreamBackedCorpusView
-        for f in self._fileids:
-            if (f.startswith(languageCode+"/") or f.startswith(languageCode+"-")) and f.endswith("-"+fileType+".txt"):
-                path = FileSystemPathPointer(self._root+"/"+f)
-                break
+        self._check_file_type(fileType)
+        path = FileSystemPathPointer(self._root+"/"+self._get_file_id(languageCode, fileType))
         # Determine the correct function to use for the StreamBackedCorpusView
         if fileType == "urls":
             func = read_one_column_block
@@ -44,16 +38,9 @@ class CrubadanCorpusReader(CorpusReader):
         :param fileType: The file type of the desired file
             (i.e. 'urls', 'words', 'wordbigrams', or 'chartrigrams')
         """
-        # Check the file type
-        if not fileType in self.FILE_TYPES:
-            raise ValueError("The file type '"+fileType+"' does not exist.")        
-        # Determine the fileid
-        fileid = ''
-        for f in self._fileids:
-            if f.startswith(languageCode+"-") and f.endswith("-"+fileType+".txt"):
-                fileid = f
-                break
-        return self.open(f).read()
+        self._check_file_type(fileType)
+        fileid = self._get_file_id(languageCode, fileType)
+        return self.open(fileid).read()
 
     def words(self, languageCode, fileType):
         """
@@ -78,7 +65,7 @@ class CrubadanCorpusReader(CorpusReader):
             (i.e. 'urls', 'words', 'wordbigrams', or 'chartrigrams')
         """
         if fileType == "urls":
-            raise ValueError("Cannot a get dict for the file type 'urls'")
+            raise ValueError("Cannot a get dict for the file type 'urls'.")
         else:
             return dict(Index(self.entries(languageCode, fileType)))
 
@@ -96,6 +83,23 @@ class CrubadanCorpusReader(CorpusReader):
                         break
             encoding = encoding_dict
         self._encoding = encoding
+
+    def _check_file_type(self, fileType):
+        """
+        Checks the validity of the fileType
+        """
+        if not fileType in self.FILE_TYPES:
+            raise ValueError("The file type '"+fileType+"' does not exist.")
+
+    def _get_file_id(self, languageCode, fileType):
+        """
+        Returns the file id based on the language code and the file type
+        If the file does not exist, raises an error
+        """
+        for f in self._fileids:
+            if (f.startswith(languageCode+"/") or f.startswith(languageCode+"-")) and f.endswith("-"+fileType+".txt"): 
+                return f
+        raise ValueError("A file for language '"+languageCode+"' of type '"+fileType+"' does not exist.")
 
 # Functions for the StreamBackedCorpusView
 def read_one_column_block(stream):
