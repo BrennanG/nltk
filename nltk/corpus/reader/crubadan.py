@@ -42,7 +42,7 @@ class CrubadanCorpusReader(CorpusReader):
             (i.e. 'urls', 'words', 'wordbigrams', or 'chartrigrams')
         """
         if fileType == "urls":
-            return [word for (word) in self.entries(languageCode, fileType)]
+            return [word for (word,) in self.entries(languageCode, fileType)]
         else:
             return [word for (word, _) in self.entries(languageCode, fileType)]
 
@@ -57,7 +57,7 @@ class CrubadanCorpusReader(CorpusReader):
             (i.e. 'urls', 'words', 'wordbigrams', or 'chartrigrams')
         """
         if fileType == "urls":
-            return dict(Index([(url, "") for url in self.entries(languageCode, fileType)]))
+            return dict(Index([(url, "") for (url,) in self.entries(languageCode, fileType)]))
         else:
             return dict(Index(self.entries(languageCode, fileType)))
 
@@ -101,7 +101,7 @@ def read_block(stream):
         if line == '': return entries # end of file.
         pieces = line.split()
         if (len(pieces) == 1):   # file type is "urls"
-            entries.append((pieces[0]))
+            entries.append((pieces[0],))
         elif (len(pieces) == 2): # file type is "chartrigrams" or "words"
             entries.append((pieces[0], pieces[1]))
         else:                    # file type is "word bigrams"
