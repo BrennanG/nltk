@@ -1,97 +1,86 @@
-import re
-
 from nltk.util import Index
 
-from nltk.corpus.reader.util import *
 from nltk.corpus.reader.api import *
 
 class CrubadanCorpusReader(CorpusReader):
+    def url_entries(self, languageCode):
+        """
+        :return: A list of urls for the desired language
+        :param languageCode: The language code for the desired language
+        """
+        return self._entries(languageCode, "urls")
 
-    FILE_TYPES = ("urls", "chartrigrams", "wordbigrams", "words")
+    def word_entries(self, languageCode):
+        """
+        :return: A list of tuples, sorted by frequencies, each containing
+            a word of the desired language at index 0 and its frequency 
+            at index 1
+        :param languageCode: The language code for the desired language
+        """
+        return self._entries(languageCode, "words")
 
-    def raw(self, languageCode, fileType):
+    def wordbigram_entries(self, languageCode):
         """
-        :return: The file of the specified language code and file type as a raw string.
-        :param languageCode: The language code of the desired file
-        :param fileType: The file type of the desired file
-            (i.e. 'urls', 'words', 'wordbigrams', or 'chartrigrams')
+        :return: A list of tuples, sorted by frequencies, each containing
+            an inner tuple of a bigram of the desired language at index 0
+            and its frequency at index 1
+        :param languageCode: The language code for the desired language
         """
-        self._check_file_type(fileType)
-        fileid = self._get_file_id(languageCode, fileType)
-        return self.open(fileid).read()
+        return self._entries(languageCode, "wordbigrams")
 
-    def entries(self, languageCode, fileType):
+    def chartrigram_entries(self, languageCode):
         """
-        :return: The file of the specified language code and file type as
-            a list containing tuples of words, word bigrams, or character trigrams
-            and their frequencies or a list containing url strings.
-        :param languageCode: The language code of the desired file
-        :param fileType: The file type of the desired file
-            (i.e. 'urls', 'words', 'wordbigrams', or 'chartrigrams')
+        :return: A list of tuples, sorted by frequencies, each containing
+            a character trigram of the desired language at index 0 and 
+            its frequency at index 1
+        :param languageCode: The language code for the desired language
         """
-        self._check_file_type(fileType)
-        path = FileSystemPathPointer(self._root+"/"+self._get_file_id(languageCode, fileType))
-        return StreamBackedCorpusView(path, read_block, encoding=self._encoding)
+        return self._entries(languageCode, "chartrigrams")
 
-    def words(self, languageCode, fileType):
+    def url_dict(self, languageCode):
         """
-        :return: A list of all urls, words, bigrams, or trigrams defined.
-            in the file of the specified language code and file type
-        :param languageCode: The language code of the desired file
-        :param fileType: The file type of the desired file
-            (i.e. 'urls', 'words', 'wordbigrams', or 'chartrigrams')
+        :return: A dictionary with urls of the desired language
+             as keys and empty strings as values
+        :param languageCode: The language code for the desired language
         """
-        if fileType == "urls":
-            return [word for (word,) in self.entries(languageCode, fileType)]
-        else:
-            return [word for (word, _) in self.entries(languageCode, fileType)]
+        return dict(Index([(url, "") for (url,) in self._entries(languageCode, "urls")]))
 
-    def dict(self, languageCode, fileType):
+    def word_dict(self, languageCode): 
         """
-        :return: The file of the specified language code and file type as a
-            dictionary. If the keys are words, word bigrams, or character
-            trigrams, then the values are frequencies. If the keys are urls,
-            then the values are empty strings.
-        :param languageCode: The language code of the desired file
-        :param fileType: The file type of the desired file
-            (i.e. 'urls', 'words', 'wordbigrams', or 'chartrigrams')
+        :return: A dictionary with words of the desired language
+             as keys and their frequencies as values
+        :param languageCode: The language code for the desired language
         """
-        if fileType == "urls":
-            return dict(Index([(url, "") for (url,) in self.entries(languageCode, fileType)]))
-        else:
-            return dict(Index(self.entries(languageCode, fileType)))
+        return dict(Index(self._entries(languageCode, "words")))
 
-    def set_encoding(self, encoding):
+    def wordbigram_dict(self, languageCode):
         """
-        :param encoding: The encoding that the Corpus Reader should use
-        """
-        if isinstance(encoding, list):
-            encoding_dict = {}
-            for fileid in self._fileids:
-                for x in encoding:
-                    (regexp, enc) = x
-                    if re.match(regexp, fileid):
-                        encoding_dict[fileid] = enc
-                        break
-            encoding = encoding_dict
-        self._encoding = encoding
+        :return: A dictionary with word bigrams of the desired language
+             as keys and their frequencies as values
+        :param languageCode: The language code for the desired language
+        """ 
+        return dict(Index(self._entries(languageCode, "wordbigrams")))
 
-    def _check_file_type(self, fileType):
+    def chartrigram_dict(self, languageCode):
         """
-        Checks the validity of the fileType.
+        :return: A dictionary with character trigrams of the desired 
+            language as keys and their frequencies as values
+        :param languageCode: The language code for the desired language
         """
-        if not fileType in self.FILE_TYPES:
-            raise ValueError("The file type '"+fileType+"' does not exist.")
+        return dict(Index(self._entries(languageCode, "chartrigrams")))
 
-    def _get_file_id(self, languageCode, fileType):
-        """
-        Returns the file id based on the language code and the file type
-        If the file does not exist, raises an error.
-        """
+    def _entries(self, languageCode, fileType):
+        # Find the file id based on the language code and file type
+        fileid = ""
         for f in self._fileids:
             if f.startswith((languageCode+"/", languageCode+"-")) and f.endswith("-"+fileType+".txt"): 
-                return f
-        raise ValueError("A file for language '"+languageCode+"' of type '"+fileType+"' does not exist.")
+                fileid = f
+        # Check that the file id was found
+        if fileid == "":
+            raise ValueError("A file for language '"+languageCode+"' of type '"+fileType+"' does not exist.")
+        # Create and return the StreamBackedCorpusView        
+        path = FileSystemPathPointer(self._root+"/"+fileid)
+        return StreamBackedCorpusView(path, read_block, encoding=self._encoding)
 
 # Function for the StreamBackedCorpusView
 def read_block(stream):
